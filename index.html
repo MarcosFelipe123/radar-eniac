@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radar Chart Eniac - Mechatronics Project</title>
+    <script src="https://www.gstatic.com/external_hosted/datastudio-components/dscc@latest.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: transparent !important;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #viz-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        .legend { font-size: 12px; fill: #555; font-weight: bold; }
+        .tooltip {
+            position: absolute;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 12px;
+            display: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="tooltip" class="tooltip"></div>
+    <div id="viz-container"></div>
+
+    <script>
+        // Função de desenho principal
+        function drawViz(data) {
+            const container = document.getElementById('viz-container');
+            container.innerHTML = ''; // Limpar antes de redesenhar
+
+            const margin = { top: 60, right: 60, bottom: 60, left: 60 };
+            const width = window.innerWidth - margin.left - margin.right;
+            const height = window.innerHeight - margin.top - margin.bottom;
+            const radius = Math.min(width / 2, height / 2);
+
+            // Cores e Estilos vindos do Looker ou Default
+            const rows = data.tables.DEFAULT;
+            const fields = data.fields;
+            const style = data.style;
+
+            // Extrair Nomes dos Eixos (Dimensão) e Valores (Métricas)
+            const axisLabels = rows.map(d => d[fields.concepts[0].id]);
+            const totalAxes = axisLabels.length;
+            const angleSlice = (Math.PI * 2) / totalAxes;
+
+            // Escala do Radar
+            const maxValue = d3.max(rows, d => d3.max(fields.metrics.map(m => d[m.id]))) || 100;
+            const rScale = d3.scaleLinear().range([0, radius]).domain([0, maxValue]);
+
+            const svg = d3.select('#viz-container')
+                .append('svg')
+                .attr('width', '100%')
+                .attr('height', '100%')
+                .append('g')
+                .attr('transform', `translate(${(width/2) + margin.left}, ${(height/2) + margin.top})`);
+
+            // --- GRID INTERNO ---
+            const levels = 5;
+            for (let i = 0; i < levels; i++) {
+                const levelFactor = radius * ((i + 1) / levels);
+                svg.append("circle")
+                    .attr("r", levelFactor)
+                    .attr("fill", "none")
+                    .attr("stroke", "#CDCDCD")
+                    .attr("stroke-dasharray", "4,4");
+            }
+
+            // --- EIXOS ---
+            const axis = svg.selectAll(".axis")
+                .data(axisLabels)
+                .enter().append("g").attr("class", "axis");
+
+            axis.append("line")
+                .attr("x1", 0).attr("y1", 0)
+                .attr("x2", (d, i) => rScale(maxValue) * Math.cos(angleSlice * i - Math.PI / 2))
+                .attr("y2", (d, i) => rScale(maxValue) * Math.sin(angleSlice * i - Math.PI / 2))
+                .attr("stroke", "#999").attr("stroke-width", "1px");
+
+            axis.append("text")
+                .attr("class", "legend")
+                .attr("text-anchor", "middle")
+                .attr("dy", "0.35em")
+                .attr("x", (d, i) => rScale(maxValue * 1.15) * Math.cos(angleSlice * i - Math.PI / 2))
+                .attr("y", (d, i) => rScale(maxValue * 1.15) * Math.sin(angleSlice * i - Math.PI / 2))
+                .text(d => d);
+
+            // --- ÁREAS DO RADAR ---
+            const radarLine = d3.lineRadial()
+                .radius(d => rScale(d.value))
+                .angle((d, i) => i * angleSlice)
+                .curve(d3.curveLinearClosed);
+
+            fields.metrics.forEach((metric, idx) => {
+                const metricData = rows.map(r => ({ value: r[metric.id], label: r[fields.concepts[0].id] }));
+                const color = d3.schemeCategory10[idx % 10];
+
+                const blobWrapper = svg.append("g");
+
+                // Preenchimento
+                blobWrapper.append("path")
+                    .attr("d", radarLine(metricData))
+                    .style("fill", color)
+                    .style("fill-opacity", 0.3);
+
+                // Linha de contorno
+                blobWrapper.append("path")
+                    .attr("d", radarLine(metricData))
+                    .style("stroke-width", "3px")
+                    .style("stroke", color)
+                    .style("fill", "none");
+
+                // Pontos
+                blobWrapper.selectAll(".dot")
+                    .data(metricData).enter().append("circle")
+                    .attr("r", 5)
+                    .attr("cx", (d, i) => rScale(d.value) * Math.cos(angleSlice * i - Math.PI / 2))
+                    .attr("cy", (d, i) => rScale(d.value) * Math.sin(angleSlice * i - Math.PI / 2))
+                    .style("fill", color);
+            });
+        }
+
+        // Conectar ao Looker Studio
+        dscc.subscribeToData(drawViz, { transform: dscc.objectTransform });
+    </script>
+</body>
+</html>
