@@ -1,0 +1,21 @@
+{
+  "name": "Custom Radar Chart Pro",
+  "organization": "Seu Nome/Empresa",
+  "description": "Gráfico de Radar profissional com suporte a múltiplas métricas e filtros nativos.",
+  "logoUrl": "https://raw.githubusercontent.com/google/ds-component/master/assets/logo.png",
+  "packageUrl": "https://seu-bucket.storage.googleapis.com/radar",
+  "devMode": true,
+  "components": [
+    {
+      "id": "radarChart",
+      "name": "Radar Chart Pro",
+      "description": "Gráfico de radar customizado.",
+      "iconUrl": "https://raw.githubusercontent.com/google/ds-component/master/assets/icon.png",
+      "resource": {
+        "js": "viz.js",
+        "config": "viz.json",
+        "css": "viz.css"
+      }
+    }
+  ]
+}]
