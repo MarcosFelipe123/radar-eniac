@@ -1,18 +1,18 @@
 {
-  "name": "Custom Radar Chart Pro",
-  "organization": "Seu Nome/Empresa",
-  "description": "Gráfico de Radar profissional com suporte a múltiplas métricas e filtros nativos.",
+  "name": "Radar Chart Eniac Pro",
+  "organization": "Marcos Felipe - Engenharia",
+  "description": "Gráfico de Radar personalizado para acompanhamento de projetos de mecatrônica e TCC.",
   "logoUrl": "https://raw.githubusercontent.com/google/ds-component/master/assets/logo.png",
   "packageUrl": "https://marcosfelipe123.github.io/radar-eniac/",
   "devMode": true,
   "components": [
     {
       "id": "radarChart",
-      "name": "Radar Chart Pro",
-      "description": "Gráfico de radar customizado.",
+      "name": "Radar Eniac",
+      "description": "Visualização de radar para múltiplas métricas.",
       "iconUrl": "https://raw.githubusercontent.com/google/ds-component/master/assets/icon.png",
       "resource": {
-        "js": "viz.js",
+        "js": "index.html",
         "config": "viz.json",
         "css": "viz.css"
       }
