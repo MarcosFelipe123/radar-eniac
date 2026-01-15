@@ -4,117 +4,115 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Radar Chart Eniac - Mechatronics Project</title>
+    
     <script src="https://www.gstatic.com/external_hosted/datastudio-components/dscc@latest.min.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+
     <style>
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: transparent !important;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: transparent !important; /* Essencial para transparência no Looker */
+            font-family: sans-serif;
         }
         #viz-container {
             width: 100vw;
             height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        .legend { font-size: 12px; fill: #555; font-weight: bold; }
-        .tooltip {
-            position: absolute;
-            padding: 8px;
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            pointer-events: none;
-            font-size: 12px;
-            display: none;
-            z-index: 10;
-        }
+        .axis-line { stroke: #999; stroke-width: 1px; }
+        .grid-line { stroke: #CDCDCD; stroke-width: 1px; stroke-dasharray: 4,4; fill: none; }
+        .legend-text { font-size: 12px; fill: #333; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="tooltip" class="tooltip"></div>
     <div id="viz-container"></div>
 
     <script>
-        // Função de desenho principal
+        // Função principal de renderização
         function drawViz(data) {
-            const container = document.getElementById('viz-container');
-            container.innerHTML = ''; // Limpar antes de redesenhar
+            // Limpa o container antes de redesenhar
+            d3.select('#viz-container').selectAll('*').remove();
 
-            const margin = { top: 60, right: 60, bottom: 60, left: 60 };
-            const width = window.innerWidth - margin.left - margin.right;
-            const height = window.innerHeight - margin.top - margin.bottom;
-            const radius = Math.min(width / 2, height / 2);
+            // Verifica se há dados suficientes
+            if (!data || !data.tables || !data.tables.DEFAULT || data.tables.DEFAULT.length === 0) {
+                return; 
+            }
 
-            // Cores e Estilos vindos do Looker ou Default
             const rows = data.tables.DEFAULT;
             const fields = data.fields;
-            const style = data.style;
 
-            // Extrair Nomes dos Eixos (Dimensão) e Valores (Métricas)
+            // Configurações de Dimensões
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const margin = 60;
+            const radius = Math.min(width, height) / 2 - margin;
+
+            // Seleção de Dimensões (Eixos) e Métricas
             const axisLabels = rows.map(d => d[fields.concepts[0].id]);
             const totalAxes = axisLabels.length;
             const angleSlice = (Math.PI * 2) / totalAxes;
 
-            // Escala do Radar
+            // Escala (Máximo valor entre todas as métricas)
             const maxValue = d3.max(rows, d => d3.max(fields.metrics.map(m => d[m.id]))) || 100;
             const rScale = d3.scaleLinear().range([0, radius]).domain([0, maxValue]);
 
+            // Criação do SVG
             const svg = d3.select('#viz-container')
                 .append('svg')
-                .attr('width', '100%')
-                .attr('height', '100%')
+                .attr('width', width)
+                .attr('height', height)
                 .append('g')
-                .attr('transform', `translate(${(width/2) + margin.left}, ${(height/2) + margin.top})`);
+                .attr('transform', `translate(${width / 2}, ${height / 2})`);
 
-            // --- GRID INTERNO ---
+            // --- DESENHO DO GRID (Níveis) ---
             const levels = 5;
             for (let i = 0; i < levels; i++) {
                 const levelFactor = radius * ((i + 1) / levels);
                 svg.append("circle")
-                    .attr("r", levelFactor)
-                    .attr("fill", "none")
-                    .attr("stroke", "#CDCDCD")
-                    .attr("stroke-dasharray", "4,4");
+                    .attr("class", "grid-line")
+                    .attr("r", levelFactor);
             }
 
-            // --- EIXOS ---
+            // --- DESENHO DOS EIXOS ---
             const axis = svg.selectAll(".axis")
                 .data(axisLabels)
-                .enter().append("g").attr("class", "axis");
+                .enter().append("g");
 
             axis.append("line")
+                .attr("class", "axis-line")
                 .attr("x1", 0).attr("y1", 0)
                 .attr("x2", (d, i) => rScale(maxValue) * Math.cos(angleSlice * i - Math.PI / 2))
-                .attr("y2", (d, i) => rScale(maxValue) * Math.sin(angleSlice * i - Math.PI / 2))
-                .attr("stroke", "#999").attr("stroke-width", "1px");
+                .attr("y2", (d, i) => rScale(maxValue) * Math.sin(angleSlice * i - Math.PI / 2));
 
             axis.append("text")
-                .attr("class", "legend")
+                .attr("class", "legend-text")
                 .attr("text-anchor", "middle")
                 .attr("dy", "0.35em")
                 .attr("x", (d, i) => rScale(maxValue * 1.15) * Math.cos(angleSlice * i - Math.PI / 2))
                 .attr("y", (d, i) => rScale(maxValue * 1.15) * Math.sin(angleSlice * i - Math.PI / 2))
                 .text(d => d);
 
-            // --- ÁREAS DO RADAR ---
+            // --- DESENHO DAS ÁREAS (Métricas) ---
             const radarLine = d3.lineRadial()
                 .radius(d => rScale(d.value))
                 .angle((d, i) => i * angleSlice)
                 .curve(d3.curveLinearClosed);
 
             fields.metrics.forEach((metric, idx) => {
-                const metricData = rows.map(r => ({ value: r[metric.id], label: r[fields.concepts[0].id] }));
-                const color = d3.schemeCategory10[idx % 10];
+                const metricData = rows.map(r => ({ value: r[metric.id] }));
+                const color = d3.schemeCategory10[idx % 10]; // Cores automáticas para múltiplas métricas
 
                 const blobWrapper = svg.append("g");
 
-                // Preenchimento
+                // Área preenchida
                 blobWrapper.append("path")
                     .attr("d", radarLine(metricData))
                     .style("fill", color)
-                    .style("fill-opacity", 0.3);
+                    .style("fill-opacity", 0.35);
 
                 // Linha de contorno
                 blobWrapper.append("path")
@@ -123,7 +121,7 @@
                     .style("stroke", color)
                     .style("fill", "none");
 
-                // Pontos
+                // Marcadores nos pontos (Dots)
                 blobWrapper.selectAll(".dot")
                     .data(metricData).enter().append("circle")
                     .attr("r", 5)
@@ -133,8 +131,29 @@
             });
         }
 
-        // Conectar ao Looker Studio
-        dscc.subscribeToData(drawViz, { transform: dscc.objectTransform });
+        // --- INICIALIZAÇÃO SEGURA ---
+        function init() {
+            try {
+                if (typeof dscc !== 'undefined' && dscc.subscribeToData) {
+                    // Assina para receber dados do Looker Studio
+                    dscc.subscribeToData(drawViz, { transform: dscc.objectTransform });
+                } else {
+                    console.error("Aguardando biblioteca DSCC...");
+                    setTimeout(init, 500);
+                }
+            } catch (e) {
+                console.error("Erro na inicialização:", e);
+            }
+        }
+
+        init();
+
+        // Redesenha ao mudar o tamanho da janela
+        window.addEventListener('resize', () => {
+            // No Looker, o redimensionamento do componente dispara um novo envio de dados, 
+            // mas o listener de resize ajuda na fluidez local.
+            location.reload(); 
+        });
     </script>
 </body>
 </html>
