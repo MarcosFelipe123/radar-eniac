@@ -3,7 +3,7 @@
   "organization": "Seu Nome/Empresa",
   "description": "Gráfico de Radar profissional com suporte a múltiplas métricas e filtros nativos.",
   "logoUrl": "https://raw.githubusercontent.com/google/ds-component/master/assets/logo.png",
-  "packageUrl": "https://seu-bucket.storage.googleapis.com/radar",
+  "packageUrl": "https://marcosfelipe123.github.io/radar-eniac/",
   "devMode": true,
   "components": [
     {
@@ -18,4 +18,5 @@
       }
     }
   ]
+
 }]
